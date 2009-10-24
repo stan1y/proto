@@ -104,7 +104,7 @@ class ThreadedTCPRequestHandler(SocketServer.BaseRequestHandler):
 			Call server implementation of service_name->method_name
 			returns response_class instance
 		"""
-		log.info('API calling %s->%s' % (service_name, method_name) )
+		log.info(' +started+ API calling %s->%s' % (service_name, method_name) )
 		done = None
 		c = ProtoController()
 		#creating implementation of requested server
@@ -119,32 +119,35 @@ class ThreadedTCPRequestHandler(SocketServer.BaseRequestHandler):
 		log.debug('Response class: %s' % response_class)
 		res = service.CallMethod(method, c, request_inst, self.callback)
 		if c.Failed():
-			log.fatal('API failed %s->%s : %s' % (service_name, method_name, c.error) )
 			self.request.send(simplejson.dumps({'error':  c.error }))
+			log.fatal('+error+ API failed %s->%s : %s' % (service_name, method_name, c.error) )
 		else:
-			log.info('API called %s->%s = %s' % (service_name, method_name, res) )
-			self.request.send(simplejson.dumps({'answer':  res }))
+			answer = encode(service_name + 'Impl',
+							method_name,
+							res, #answer instead or request
+							response_class)
+			self.request.send(answer)
+			log.info(' +finished+ API called %s->%s = %s' % (service_name, method_name, answer))
 		
 class ThreadedTCPServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
     pass
    
-def encode(md, request, response_class):
+def encode(service_name, method_name, request, response_class):
 	packet = {}
-	packet['service'] = md.containing_service.name
-	packet['method'] = md.name
+	packet['service'] = service_name
+	packet['method'] = method_name
 	packet['request_class'] = type(request).__name__
 	packet['request'] = request.SerializeToString()
 	packet['response_class'] = response_class.__name__
 	p = simplejson.dumps(packet)
-	log.debug('Encoded packet: %s' % p)
+	log.debug('encoded packet: %s' % p)
 	return p
-	
+
 def decode(data):
-	log.debug('received packet (l:%s): %s' % (len(data), data))
 	packet = simplejson.loads(data)
-	
-	if 'error' in packet:
-		raise ProtoError('Remote Exception: %s' % packet['error'])
+	if not isinstance(packet, dict):
+		raise ProtoError('Invalid data for decoding')
+	log.debug('decoded packet (size=%s): %s' % (len(data), packet))
 	service_name = packet['service']
 	method_name = packet['method']
 	request_class = getattr(get_pb2_module(),str(packet['request_class']))
@@ -210,7 +213,7 @@ class ProtoChannel(RpcChannel):
 		log.debug('Request object: %s' % (type(request)))
 		log.debug('Response class: %s' % response_class)
 		
-		packet = encode(md, request, response_class )		
+		packet = encode(md.containing_service.name, md.name, request, response_class )		
 		answer = send_receive(self.sock, packet )
 		
 		log.debug('answer: (%s) %s' % (type(answer), answer))
