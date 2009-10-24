@@ -7,7 +7,7 @@ message K7_AppInfo
 message K7_Login
 {
 	required string login = 1;
-	required string password = 2;
+	optional string password = 2;
 }
 
 message K7_UserInfo
