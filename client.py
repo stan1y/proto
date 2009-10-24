@@ -6,11 +6,11 @@ Created on  Oct 23, 2009
 @author: Stanislav Yudin
 '''
 #proto library imports
-from proto import ProtoChannel, ProtoController, ProtoError, set_pb2_module
+from proto import ProtoChannel, ProtoController, ProtoError
 #pb2 generated module
 import k7talk_pb2 as pb2
 #user imports
-from k7talk_pb2 import K7_Login, K7TalkServer_Stub
+from k7talk_pb2 import K7_Login, K7TalkServer_Stub, K7_SignIn
 import logging
 
 logging.basicConfig(level=logging.DEBUG)
@@ -34,9 +34,8 @@ if __name__ == '__main__':
 		
 		s_ = K7_SignIn()
 		s_.app_name = 'my-app'
-		s_.user = user_info
-		app_info  = server.signin_app(controller, login_, async_callback)
-		print 'signin_app %s' % app_info
+		app_info  = server.signin_app(controller, s_, async_callback)
+		print 'signin_app %s' % app_info[0]
 		
 		print 'client done'
 	except ProtoError, pe:

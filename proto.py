@@ -86,15 +86,20 @@ class ProtoController(RpcController):
 
 class ThreadedTCPRequestHandler(SocketServer.BaseRequestHandler):	
 	def handle(self):
-		data = self.request.recv(MAX_PACKET)
-		log.debug('received raw data (%s): %s' % (len(data), data))
-		if not data:
-			log.error('No data!')
-			return
-			
-		service_name, method_name, request_inst, response_class = decode(data)
-		self.CallMethod(service_name, method_name, request_inst, response_class)
-		self.request.send(data)
+		while(True):
+			try:
+				data = self.request.recv(MAX_PACKET)
+				log.debug('received raw data (%s): %s' % (len(data), data))
+				if not data:
+					log.error('No data!')
+					break
+					
+				service_name, method_name, request_inst, response_class = decode(data)
+				self.CallMethod(service_name, method_name, request_inst, response_class)
+				self.request.send(data)
+			except socket.error, se:
+				log.info('received (%s) %s' % (type(se), str(se)) )
+				break
 		
 	def callback(self, object):
 		log.info('callback: %s', object)
@@ -119,8 +124,10 @@ class ThreadedTCPRequestHandler(SocketServer.BaseRequestHandler):
 		log.debug('Response class: %s' % response_class)
 		res = service.CallMethod(method, c, request_inst, self.callback)
 		if c.Failed():
-			self.request.send(simplejson.dumps({'error':  c.error }))
+			answer = simplejson.dumps({'error':  c.error })
 			log.fatal('+error+ API failed %s->%s : %s' % (service_name, method_name, c.error) )
+			log.fatal('+error+ sending: %s' % answer)
+			self.request.send(answer)
 		else:
 			answer = encode(service_name + 'Impl',
 							method_name,
@@ -140,14 +147,16 @@ def encode(service_name, method_name, request, response_class):
 	packet['request'] = request.SerializeToString()
 	packet['response_class'] = response_class.__name__
 	p = simplejson.dumps(packet)
-	log.debug('encoded packet: %s' % p)
 	return p
 
 def decode(data):
 	packet = simplejson.loads(data)
 	if not isinstance(packet, dict):
 		raise ProtoError('Invalid data for decoding')
-	log.debug('decoded packet (size=%s): %s' % (len(data), packet))
+	
+	if 'error' in packet:
+		raise ProtoError(packet['error'])
+	
 	service_name = packet['service']
 	method_name = packet['method']
 	request_class = getattr(get_pb2_module(),str(packet['request_class']))
@@ -160,12 +169,9 @@ def send_receive(sock, packet):
 	log.debug('sending...')
 	sock.send(packet)
 	log.debug('receiving...')
-	response = sock.recv(MAX_PACKET)
-	if not response:
-		log.error('No response!')
-		sys.exit(-1)
-	log.debug('gochaa!')
-	return decode(response)
+	data = sock.recv(MAX_PACKET)
+	log.debug('Gochaa! (%s) : %s' % (len(data), data))
+	return decode(data)
    
 def run_server(port, pb2, impl):
 	run_server_thread(port, pb2, impl)[1].join()
