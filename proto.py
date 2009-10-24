@@ -13,22 +13,30 @@ import socket
 import threading
 import SocketServer
 import simplejson
-from k7talk_pb2 import *
 
 log = logging.getLogger(__name__)
 MAX_PACKET = 16000
 
 __pb2_module = None
 
-def get_module():
+def get_pb2_module():
 	global __pb2_module
-	if __pb2_module:
-		return __pb2_module
-	
-def set_module(module):
+	return __pb2_module
+
+def set_pb2_module(module):
 	global __pb2_module
 	if not __pb2_module:
 		__pb2_module = module
+
+__impl_module = None
+def get_impl_module():
+	global __impl_module
+	return __impl_module
+
+def set_impl_module(module):
+	global __impl_module
+	if not __impl_module:
+		__impl_module = module
 
 class ProtoError(Exception):
 	pass
@@ -76,15 +84,6 @@ class ProtoController(RpcController):
   		log.error('notify: %s' % callback)
   		pass
 
-class K7TalkServerImpl(K7TalkServer):
-	def login(self, rpc_controller, request, done):
-		log.info('login implementation called')
-		return K7_UserInfo( id = 1, 
-						first_name = 'John', 
-						last_name = 'Smith',
-						login = K7_Login( login = 'johnsmith')
-						)
-
 class ThreadedTCPRequestHandler(SocketServer.BaseRequestHandler):	
 	def handle(self):
 		data = self.request.recv(MAX_PACKET)
@@ -108,7 +107,8 @@ class ThreadedTCPRequestHandler(SocketServer.BaseRequestHandler):
 		log.info('API calling %s->%s' % (service_name, method_name) )
 		done = None
 		c = ProtoController()
-		service = globals()[service_name + 'Impl']()
+		#creating implementation of requested server
+		service = getattr(get_impl_module(), service_name + 'Impl')()
 		log.debug('Service object: %s' % service)
 		method = service.GetDescriptor().FindMethodByName(method_name)
 		if not method:
@@ -121,10 +121,9 @@ class ThreadedTCPRequestHandler(SocketServer.BaseRequestHandler):
 		if c.Failed():
 			log.fatal('API failed %s->%s : %s' % (service_name, method_name, c.error) )
 			self.request.send(simplejson.dumps({'error':  c.error }))
-			return None
 		else:
 			log.info('API called %s->%s = %s' % (service_name, method_name, res) )
-			return res
+			self.request.send(simplejson.dumps({'answer':  res }))
 		
 class ThreadedTCPServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
     pass
@@ -146,13 +145,12 @@ def decode(data):
 	
 	if 'error' in packet:
 		raise ProtoError('Remote Exception: %s' % packet['error'])
-	
 	service_name = packet['service']
 	method_name = packet['method']
-	request_class = getattr(get_module(), str(packet['request_class']))
+	request_class = getattr(get_pb2_module(),str(packet['request_class']))
 	request_inst = request_class()
 	request_inst.ParseFromString(packet['request'])
-	response_class = getattr(get_module(), str(packet['response_class']))
+	response_class = getattr(get_pb2_module(), str(packet['response_class']))
 	return service_name, method_name, request_inst, response_class
 
 def send_receive(sock, packet):
@@ -166,11 +164,12 @@ def send_receive(sock, packet):
 	log.debug('gochaa!')
 	return decode(response)
    
-def run_server(port):
-	run_server_thread(port)[1].join()
+def run_server(port, pb2, impl):
+	run_server_thread(port, pb2, impl)[1].join()
 	
-def run_server_thread(port):
-	log.info('pb2 module: %s' % str(get_module()))
+def run_server_thread(port, pb2, impl):
+	set_pb2_module(pb2)
+	set_impl_module(impl)
 	
 	log.info('Starting server for %s: %s' % ('localhost', port))
 	server = ThreadedTCPServer(('localhost', port), ThreadedTCPRequestHandler)
@@ -188,7 +187,8 @@ class ProtoChannel(RpcChannel):
 	"""
 		Client access 
 	"""
-	def __init__(self, host, port):
+	def __init__(self, host, port, pb2):
+		set_pb2_module(pb2)
 		self.host = host
 		self.port = port
 		self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
