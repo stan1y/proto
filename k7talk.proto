@@ -21,7 +21,7 @@ message K7_UserInfo
 message K7_SignIn
 {
 	required string app_name = 1;
-	required K7_UserInfo user = 2;
+	optional K7_UserInfo user = 2;
 }
 
 message K7_BalanceAnswer
