@@ -13,6 +13,7 @@ import socket
 import threading
 import SocketServer
 import simplejson
+from k7talk_pb2 import *
 
 log = logging.getLogger(__name__)
 MAX_PACKET = 16000
@@ -75,6 +76,15 @@ class ProtoController(RpcController):
   		log.error('notify: %s' % callback)
   		pass
 
+class K7TalkServerImpl(K7TalkServer):
+	def login(self, rpc_controller, request, done):
+		log.info('login implementation called')
+		return K7_UserInfo( id = 1, 
+						first_name = 'John', 
+						last_name = 'Smith',
+						login = K7_Login( login = 'johnsmith')
+						)
+
 class ThreadedTCPRequestHandler(SocketServer.BaseRequestHandler):	
 	def handle(self):
 		data = self.request.recv(MAX_PACKET)
@@ -98,7 +108,7 @@ class ThreadedTCPRequestHandler(SocketServer.BaseRequestHandler):
 		log.info('API calling %s->%s' % (service_name, method_name) )
 		done = None
 		c = ProtoController()
-		service = getattr(get_module(), service_name)()
+		service = globals()[service_name + 'Impl']()
 		log.debug('Service object: %s' % service)
 		method = service.GetDescriptor().FindMethodByName(method_name)
 		if not method:
@@ -156,11 +166,10 @@ def send_receive(sock, packet):
 	log.debug('gochaa!')
 	return decode(response)
    
-def run_server(port, module):
-	run_server_thread(port, module)[1].join()
+def run_server(port):
+	run_server_thread(port)[1].join()
 	
-def run_server_thread(port, module):
-	set_module(module)
+def run_server_thread(port):
 	log.info('pb2 module: %s' % str(get_module()))
 	
 	log.info('Starting server for %s: %s' % ('localhost', port))
