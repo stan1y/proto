@@ -8,20 +8,7 @@ References:
 http://github.com/AwesomeStanly/proto
 http://code.google.com/apis/protocolbuffers/
 
-Before using this rpc you need to create a protocol file and
-generate python stubs and classes. To do it use
-./protoc -python_out=. myprotocolfile.proto
-So your 'myprotocolfile' will become myprotocolfile_pb2.py module.
-You should supply it to 'run_server' method of your
-rpc server implemenration. See server.py for reference
-
-1. To create a rpc server
- - subclass ProtoServer and generated server class		class my_rpc_server_impl(ProtoServer, K7TalkServer):	"
- 															def __init__(self, addr):							"
-  																ProtoServer.__init__(self, addr)				"
- - import your generated module like.					import myprotocolfile_pb2 as pb2						"
- - start server											my_rpc_server_impl.run_server(port = 9999, pb2 = pb2)	"
-
+See README.txt for usage
 
 @author: Stanislav Yudin
 '''
