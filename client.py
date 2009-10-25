@@ -39,4 +39,4 @@ if __name__ == '__main__':
 		
 		print 'client done'
 	except ProtoError, pe:
-		print str(pe)
+		print 'ProtoError:', str(pe)
