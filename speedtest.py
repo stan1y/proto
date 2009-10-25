@@ -47,7 +47,7 @@ def run(number):
 			log.info('waiting 5 seconds to let server start...')
 			time.sleep(5)
 			log.info('testing %s calls' % number)
-			log.info('result: %s' % do_call())
+			log.info('result: %s' % do_call(number))
 		except ProtoError, pe:
 			print 'ProtoError:', str(pe)
 			sys.exit(1)
