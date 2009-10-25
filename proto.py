@@ -2,6 +2,26 @@
 The Proto! Python Async RPC based on Protobufers and TCP sokets.
 Licenced under LPGLv2+.
 Created on  Oct 24, 2009
+Version 0.0.2
+
+References:
+http://github.com/AwesomeStanly/proto
+http://code.google.com/apis/protocolbuffers/
+
+Before using this rpc you need to create a protocol file and
+generate python stubs and classes. To do it use
+./protoc -python_out=. myprotocolfile.proto
+So your 'myprotocolfile' will become myprotocolfile_pb2.py module.
+You should supply it to 'run_server' method of your
+rpc server implemenration. See server.py for reference
+
+1. To create a rpc server
+ - subclass ProtoServer and generated server class		class my_rpc_server_impl(ProtoServer, K7TalkServer):	"
+ 															def __init__(self, addr):							"
+  																ProtoServer.__init__(self, addr)				"
+ - import your generated module like.					import myprotocolfile_pb2 as pb2						"
+ - start server											my_rpc_server_impl.run_server(port = 9999, pb2 = pb2)	"
+
 
 @author: Stanislav Yudin
 '''
@@ -27,16 +47,6 @@ def set_pb2_module(module):
 	global __pb2_module
 	if not __pb2_module:
 		__pb2_module = module
-
-__impl_module = None
-def get_impl_module():
-	global __impl_module
-	return __impl_module
-
-def set_impl_module(module):
-	global __impl_module
-	if not __impl_module:
-		__impl_module = module
 		
 class ProtoDisconnected(Exception):
 	pass
@@ -97,6 +107,26 @@ class ProtoServer(object):
 		self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 		self.sock.bind(addr)
 	
+	@classmethod	
+	def run_server(cls, port, pb2):
+		cls.run_server_thread(port, pb2)[1].join()
+	
+	@classmethod
+	def run_server_thread(cls, port, pb2):
+		set_pb2_module(pb2)
+		log.info('Starting server for %s: %s' % ('localhost', port))
+		server = cls(('localhost', port))
+	    # Start a thread with the server -- that thread will then start one
+	    # more thread for each request
+		server_thread = threading.Thread(target=server.serve_forever)
+	    # Exit the server thread when the main thread terminates
+		server_thread.setDaemon(True)
+		server_thread.start()
+		#log.info("Server loop running in thread:", server_thread.getName())
+		return server, server_thread
+			
+	# ************** Packet encoding and decoding ******************* #
+	
 	def serve_forever(self):
 		self.sock.listen(10)
 		while(True):
@@ -114,17 +144,20 @@ class ProtoServer(object):
 					"""
 					log.info('Reading data from %s' % connection)
 					data = recv_data(connection)
+					
 					#call method
 					service_name, method_name, request_inst, response_class = decode_request(data)
-					log.info('rpc api %s.%s started' % (service_name, method_name))
+					log.info('rpc api %s.%s started' % (type(self).__name__, method_name))
+					log.debug('rpc service object: %s (%s)' % (service_name, getattr(get_pb2_module(), service_name)))
+					if not isinstance(self, getattr(get_pb2_module(), service_name) ):
+						raise ProtoError('method %s expects service class %s, but found %s' %
+										( method_name, service_name, type(self).__name__ )
+										)
+					
 					done = None
 					c = ProtoController()
-					
 					#creating implementation of requested server
-					service = getattr(get_impl_module(), service_name + 'Impl')()
-			
-					log.debug('rpc service object: %s (%s)' % (service_name, service))
-					method = service.GetDescriptor().FindMethodByName(method_name)
+					method = self.GetDescriptor().FindMethodByName(method_name)
 					if not method:
 						log.fatal('Failed to find method %s' % method_name)
 						raise ProtoError('Failed to find method %s' % method_name)
@@ -135,7 +168,8 @@ class ProtoServer(object):
 																method )
 																)
 			
-					res = service.CallMethod(method, c, request_inst, self.callback)
+					res = self.CallMethod(method, c, request_inst, self.callback)
+					
 					if c.Failed() or not res:
 						log.fatal('rpc api %s.%s failed: %s' % (service_name, method_name, c.error) )
 						#answer with error
@@ -156,26 +190,6 @@ class ProtoServer(object):
 		
 	def callback(self, object):
 		log.info('callback: %s', object)
-
-def run_server(port, pb2, impl):
-	run_server_thread(port, pb2, impl)[1].join()
-	
-def run_server_thread(port, pb2, impl):
-	set_pb2_module(pb2)
-	set_impl_module(impl)
-	
-	log.info('Starting server for %s: %s' % ('localhost', port))
-	server = ProtoServer(('localhost', port))
-    # Start a thread with the server -- that thread will then start one
-    # more thread for each request
-	server_thread = threading.Thread(target=server.serve_forever)
-    # Exit the server thread when the main thread terminates
-	server_thread.setDaemon(True)
-	server_thread.start()
-	#log.info("Server loop running in thread:", server_thread.getName())
-	return server, server_thread
-		
-# ************** Packet encoding and decoding ******************* #
    
 def encode_request(service_name, method_name, request_obj, response_class):
 	request = {}
