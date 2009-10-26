@@ -5,10 +5,18 @@ Created on  Oct 24, 2009
 @author: Stanislav Yudin
 '''
 import sys, logging
-from proto import run_server, set_pb2_module
-from k7talk_pb2 import *
-import k7talk_pb2 as pb2
-import k7impl as impl
+import sample_pb2, proto
+
+log = logging.getLogger(__name__)
+
+class sample_impl(proto.ProtoServer, sample_pb2.sample_rpc):
+	def __init__(self, addr):
+		proto.ProtoServer.__init__(self, addr)
+		log.debug('starting service %s' % type(self).__name__)
+	
+	def the_method(self, rpc_controller, request, done):
+		log.debug('%s called with %s' % (__name__, request))
+		return sample_pb2.sample_response(answer = 'answer!')
 
 logging.basicConfig(level=logging.DEBUG)
 log = logging.getLogger(__name__)
@@ -19,4 +27,4 @@ if __name__ == '__main__':
 		port = int(sys.argv[1])
 	#running server with specific generated files and
 	#module containing service implementation(s)
-	run_server(port, pb2, impl)
+	sample_impl.run_server(port, sample_pb2)

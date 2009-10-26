@@ -5,38 +5,26 @@ Created on  Oct 23, 2009
 
 @author: Stanislav Yudin
 '''
-#proto library imports
-from proto import ProtoChannel, ProtoController, ProtoError
-#pb2 generated module
-import k7talk_pb2 as pb2
-#user imports
-from k7talk_pb2 import K7_Login, K7TalkServer_Stub, K7_SignIn
 import logging
+import proto
+import sample_pb2
 
 logging.basicConfig(level=logging.DEBUG)
 log = logging.getLogger(__name__)
 
 def async_callback(answer):
-	assert not answer == None
+	pass
 
 if __name__ == '__main__':
 	print 'client starting'
 	#specifying generated classes
-	server = K7TalkServer_Stub(ProtoChannel('localhost', 9999, pb2))
-	controller = ProtoController()
+	server = sample_pb2.sample_rpc_Stub(proto.ProtoChannel('localhost', 9999, sample_pb2))
+	controller = proto.ProtoController()
 	try:
-		login_ = K7_Login()
-		login_.login = 'asd'
-		login_.password = 'zxc'
-		user_info  = server.login(controller, login_, async_callback)
-		print 'login answer %s' % str(user_info)
-		
-		
-		s_ = K7_SignIn()
-		s_.app_name = 'my-app'
-		app_info  = server.signin_app(controller, s_, async_callback)
-		print 'signin_app %s' % app_info[0]
-		
+		rst = sample_pb2.sample_request( message = 'hello server!')
+		resp = server.the_method(controller, rst, async_callback)
+		print 'server answer %s' % str(resp.answer)
+
 		print 'client done'
-	except ProtoError, pe:
+	except proto.ProtoError, pe:
 		print 'ProtoError:', str(pe)
