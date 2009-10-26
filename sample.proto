@@ -1,0 +1,14 @@
+message sample_request
+{
+	required string message = 1;
+}
+
+message sample_response
+{
+	required string answer = 1;
+}
+
+service sample_rpc
+{
+	rpc the_method(sample_request) returns(sample_response);
+}
