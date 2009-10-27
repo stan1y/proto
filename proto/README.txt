@@ -1,4 +1,4 @@
-The Proto! Python Async RPC based on Protobufers and TCP sokets.
+The Proto! Python Async RPC based on ProtocolBuffers and TCP sockets.
 Licenced under LPGLv2+.
 Created on  Oct 24, 2009
 Version 0.0.2
