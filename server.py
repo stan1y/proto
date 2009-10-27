@@ -5,7 +5,7 @@ Created on  Oct 24, 2009
 @author: Stanislav Yudin
 '''
 import sys, logging
-import sample_pb2, proto
+import sample_pb2, proto, proto.threaded
 
 log = logging.getLogger(__name__)
 
