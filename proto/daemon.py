@@ -1,5 +1,19 @@
-#!/usr/bin/env python
+'''
+The Proto! Python Async RPC based on Protobufers and TCP sokets.
+Licenced under LPGLv2+.
+Created on  Oct 24, 2009
+Version 0.0.2
 
+Generic Daemon class
+
+References:
+http://github.com/AwesomeStanly/proto
+http://code.google.com/apis/protocolbuffers/
+
+See README.txt for usage
+
+@author: Stanislav Yudin
+'''
 import sys, os, time, atexit
 from signal import SIGTERM 
 

@@ -20,6 +20,7 @@ import socket
 import threading
 import SocketServer
 import simplejson
+import packet
 
 log = logging.getLogger(__name__)
 SIZE = 8192
@@ -106,8 +107,6 @@ class ProtoServer(object):
 	    # Start a thread with the server -- that thread will then start one
 	    # more thread for each request
 		server_thread = threading.Thread(target=server.serve_forever)
-	    # Exit the server thread when the main thread terminates
-		server_thread.setDaemon(True)
 		server_thread.start()
 		#log.info("Server loop running in thread:", server_thread.getName())
 		return server, server_thread
@@ -123,17 +122,18 @@ class ProtoServer(object):
 			log.info('Accepting connections..')
 			try:
 				connection, address = self.sock.accept()
+				socket = ProtoSocket(connection)
 				log.debug('Connection from %s:%s' % address)
 				
 				while(True):
 					"""
 					Reading packets
 					"""
-					log.info('Reading data from %s' % connection)
-					data = recv_data(connection)
+					log.info('Reading data from %s' % socket)
+					data = socket.recv_data()
 					
 					#call method
-					service_name, method_name, request_inst, response_class = decode_request(data)
+					service_name, method_name, request_inst, response_class = packet.decode_request(data, get_pb2_module())
 					log.info('rpc api %s.%s started' % (type(self).__name__, method_name))
 					log.debug('rpc service object: %s (%s)' % (service_name, getattr(get_pb2_module(), service_name)))
 					if not isinstance(self, getattr(get_pb2_module(), service_name) ):
@@ -160,12 +160,12 @@ class ProtoServer(object):
 					if c.Failed() or not res:
 						log.fatal('rpc api %s.%s failed: %s' % (service_name, method_name, c.error) )
 						#answer with error
-						send_error_answer(connection, c.error)
+						socket.send_error_answer(c.error)
 					else:
 				
 						#create answer
-						answer = encode_answer(service_name, method_name, res, response_class)
-						send_data(connection,answer)
+						answer = packet.encode_answer(service_name, method_name, res, response_class)
+						socket.send_data(answer)
 						log.info('rpc call %s.%s finished' % (service_name, method_name))
 					continue #reading	
 						
@@ -177,111 +177,40 @@ class ProtoServer(object):
 		
 	def callback(self, object):
 		log.info('callback: %s', object)
-   
-def encode_request(service_name, method_name, request_obj, response_class):
-	request = {}
-	packet = {}
-	packet['service'] = service_name
-	packet['method'] = method_name
-	packet['request_class'] = type(request_obj).__name__
-	packet['request'] = request_obj.SerializeToString()
-	packet['response_class'] = response_class.__name__
-	request['request'] = packet
-	r = simplejson.dumps(request)
-	return r
-
-def encode_answer(service_name, method_name, response, response_class):
-	answer = {}
-	packet = {}
-	packet['service'] = service_name
-	packet['method'] = method_name
-	packet['response'] = response.SerializeToString()
-	packet['response_class'] = response_class.__name__
-	answer['answer']= packet
-	a = simplejson.dumps(answer)
-	return a
-
-def decode_request(data):
-	request = simplejson.loads(data)
-	if not isinstance(request, dict) or not is_request(data):
-		raise ProtoError('Invalid request for decoding')
-	packet = request['request']
-	if not isinstance(packet, dict):
-		raise ProtoError('Invalid packet for decoding request')
 	
-	service_name = packet['service']
-	method_name = packet['method']
-	request_class = getattr(get_pb2_module(),str(packet['request_class']))
-	request_inst = request_class()
-	request_inst.ParseFromString(packet['request'])
-	response_class = getattr(get_pb2_module(), str(packet['response_class']))
-	return service_name, method_name, request_inst, response_class
-
-def decode_answer(data):
-	answer = simplejson.loads(data)
-	if not isinstance(answer, dict) or not is_answer(data):
-		raise ProtoError('Invalid answer for decoding')
+class ProtoSocket(object):
+	def __init__(self, socket):
+		self.__socket = socket
 	
-	#check for error
-	if 'error' in answer:
-		raise ProtoError(answer['error'])
+	def recv_data(self):
+		log.debug('reading data...')
+		data = self.__socket.recv(8192)
+		if not data:
+			log.debug('socket disconnected!')
+			raise ProtoDisconnected()
+		log.debug('received %s bytes' % len(data))
+		return data		
 	
-	packet = answer['answer']
-	if not isinstance(packet, dict):
-		raise ProtoError('Invalid packet for decoding answer')
+	def send_data(self, data):
+		sent_bytes = self.__socket.send(data)
+		log.debug('sent %s bytes' % sent_bytes)
+		
+	def send_error_answer(self, error):
+		p = simplejson.dumps({ 'error': error })
+		log.debug('rpc sending error: %s' % p)
+		self.send_data(p)
 	
-	service_name = packet['service']
-	method_name = packet['method']
-	response_class = getattr(get_pb2_module(),str(packet['response_class']))
-	response_inst = response_class()
-	response_inst.ParseFromString(packet['response'])
-	return service_name, method_name, response_inst, response_class
-
-def is_answer(data):
-	answer = simplejson.loads(data)
-	if 'error' or 'answer' in answer:
-		return True
-	else:
-		return False
-	
-def is_request(data):
-	request = simplejson.loads(data)
-	if 'request' in request:
-		return True
-	else:
-		return False
-	
-# ************** Send % Receive ******************* #
-
-def recv_data(the_socket):
-	log.debug('reading data...')
-	data = the_socket.recv(8192)
-	if not data:
-		log.debug('socket disconnected!')
-		raise ProtoDisconnected()
-	log.debug('received %s bytes' % len(data))
-	return data		
-
-def send_data(sock,data):
-	sent_bytes = sock.send(data)
-	log.debug('sent %s bytes' % sent_bytes)
-	
-def send_error_answer(sock, error):
-	p = simplejson.dumps({ 'error': error })
-	log.debug('rpc sending error: %s' % p)
-	send_data(sock, p)
-
-def request_with_answer(sock, request):
-	send_data(sock, request)
-	data = recv_data(sock)
-	if not data or len(data) < 0:
-		raise ProtoError('No data received as response')
-	if is_answer(data):
-		#answer received, exiting while and return
-		log.debug('Gochaa! (%s) : %s' % (len(data), data))
-		return decode_answer(data)
-	else:
-		log.debug('received some strange data while waiting for answer...')
+	def request_with_answer(self, request):
+		self.send_data(request)
+		data = self.recv_data()
+		if not data or len(data) < 0:
+			raise ProtoError('No data received as response')
+		if packet.is_answer(data):
+			#answer received, exiting while and return
+			log.debug('Gochaa! (%s) : %s' % (len(data), data))
+			return packet.decode_answer(data, get_pb2_module())
+		else:
+			log.debug('received some strange data while waiting for answer...')
 		
 
 # ************** Client ******************* #
@@ -294,9 +223,10 @@ class ProtoChannel(RpcChannel):
 		set_pb2_module(pb2)
 		self.host = host
 		self.port = port
-		self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+		s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+		s.connect((host, port))
 		log.info('opening channel to %s:%s' % (host, port))
-		self.sock.connect((host, port))		
+		self.sock = ProtoSocket(s)
 	
 	def CallMethod(self, md, rpc_controller, request, response_class, done):
 		"""
@@ -314,8 +244,8 @@ class ProtoChannel(RpcChannel):
 		log.debug('Request object: %s' % (type(request)))
 		log.debug('Response class: %s' % response_class)
 		
-		request = encode_request(md.containing_service.name, md.name, request, response_class)
-		service_name, method_name, response_inst, response_class = request_with_answer(self.sock, request)
+		request = packet.encode_request(md.containing_service.name, md.name, request, response_class)
+		service_name, method_name, response_inst, response_class = self.sock.request_with_answer(request)
 		
 		log.debug('answer method_name: %s' % method_name)
 		log.debug('answer service_name: %s' % service_name)
