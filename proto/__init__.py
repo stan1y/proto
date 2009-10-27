@@ -2,7 +2,7 @@
 The Proto! Python Async RPC based on Protobufers and TCP sokets.
 Licenced under LPGLv2+.
 Created on  Oct 24, 2009
-Version 0.0.2
+Version 0.3.1
 
 References:
 http://github.com/AwesomeStanly/proto
@@ -18,9 +18,9 @@ import logging
 import time
 import socket
 import threading
-import SocketServer
 import simplejson
 import packet
+import threaded
 
 log = logging.getLogger(__name__)
 SIZE = 8192
@@ -110,10 +110,11 @@ class ProtoServer(object):
 		server_thread.start()
 		#log.info("Server loop running in thread:", server_thread.getName())
 		return server, server_thread
-			
-	# ************** Packet encoding and decoding ******************* #
 	
 	def serve_forever(self):
+		'''
+			Main server entry point
+		'''
 		self.sock.listen(10)
 		while(True):
 			"""
@@ -123,64 +124,67 @@ class ProtoServer(object):
 			try:
 				connection, address = self.sock.accept()
 				socket = ProtoSocket(connection)
+				self.handle_socket(socket)
 				log.debug('Connection from %s:%s' % address)
-				
-				while(True):
-					"""
-					Reading packets
-					"""
-					log.info('Reading data from %s' % socket)
-					data = socket.recv_data()
-					
-					#call method
-					service_name, method_name, request_inst, response_class = packet.decode_request(data, get_pb2_module())
-					log.info('rpc api %s.%s started' % (type(self).__name__, method_name))
-					log.debug('rpc service object: %s (%s)' % (service_name, getattr(get_pb2_module(), service_name)))
-					if not isinstance(self, getattr(get_pb2_module(), service_name) ):
-						raise ProtoError('method %s expects service class %s, but found %s' %
-										( method_name, service_name, type(self).__name__ )
-										)
-					
-					done = None
-					c = ProtoController()
-					#creating implementation of requested server
-					method = self.GetDescriptor().FindMethodByName(method_name)
-					if not method:
-						log.fatal('Failed to find method %s' % method_name)
-						raise ProtoError('Failed to find method %s' % method_name)
-			
-					log.debug('rpc method : %s %s.%s() (%s)' % ( response_class.__name__, 
-																service_name,
-																method.name,
-																method )
-																)
-			
-					res = self.CallMethod(method, c, request_inst, self.callback)
-					
-					if c.Failed() or not res:
-						log.fatal('rpc api %s.%s failed: %s' % (service_name, method_name, c.error) )
-						#answer with error
-						socket.send_error_answer(c.error)
-					else:
-				
-						#create answer
-						answer = packet.encode_answer(service_name, method_name, res, response_class)
-						socket.send_data(answer)
-						log.info('rpc call %s.%s finished' % (service_name, method_name))
-					continue #reading	
-						
 			except ProtoDisconnected, pd:
 				log.info('disconnected (%s) %s' % (type(pd), str(pd)) )
 				log.info('closing clinet connection,,,')
 				connection.close()
 				continue #accepting
-		
+
 	def callback(self, object):
 		log.info('callback: %s', object)
+			
+	def handle_socket(self, socket):
+		while(True):
+			"""
+			Reading packets
+			"""
+			log.info('Reading data from %s' % socket)
+			data = socket.recv_data()
+			#call method
+			service_name, method_name, request_inst, response_class = packet.decode_request(data, get_pb2_module())
+			log.info('rpc api %s.%s started' % (type(self).__name__, method_name))
+			log.debug('rpc service object: %s (%s)' % (service_name, getattr(get_pb2_module(), service_name)))
+			if not isinstance(self, getattr(get_pb2_module(), service_name) ):
+				raise ProtoError('method %s expects service class %s, but found %s' %
+								( method_name, service_name, type(self).__name__ )
+								)
+					
+			done = None
+			c = ProtoController()
+			#creating implementation of requested server
+			method = self.GetDescriptor().FindMethodByName(method_name)
+			if not method:
+				log.fatal('Failed to find method %s' % method_name)
+				raise ProtoError('Failed to find method %s' % method_name)
+			
+			log.debug('rpc method : %s %s.%s() (%s)' % ( response_class.__name__, 
+														service_name,
+														method.name,
+														method )
+														)
+				
+			res = self.CallMethod(method, c, request_inst, self.callback)
+			
+			if c.Failed() or not res:
+				log.fatal('rpc api %s.%s failed: %s' % (service_name, method_name, c.error) )
+				#answer with error
+				socket.send_error_answer(c.error)
+			else:
+			
+				#create answer
+				answer = packet.encode_answer(service_name, method_name, res, response_class)
+				socket.send_data(answer)
+				log.info('rpc call %s.%s finished' % (service_name, method_name))
+			continue #reading	
 	
 class ProtoSocket(object):
 	def __init__(self, socket):
 		self.__socket = socket
+		
+	def close(self):
+		self.__socket.close()
 	
 	def recv_data(self):
 		log.debug('reading data...')
