@@ -40,4 +40,4 @@ if __name__ == '__main__':
 			log.fatal('unknown command %s' % action)
 		sys.exit(0)
 	else:
-		print 'Usage: %s start|stop|restart [port]'
+		print 'Usage: %s start|stop|restart [port]' % sys.argv[0]
