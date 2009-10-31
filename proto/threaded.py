@@ -9,9 +9,9 @@ import threadpool
 import logging
 
 log = logging.getLogger(__name__)
-pool = threadpool.ThreadPool(10)
 
 def ProtoThreadServer(ProtoServer):
+	pool = threadpool.ThreadPool(10)
 	def handle_socket(self, socket):
 		'''
 		This method implemented in ProtoServer
@@ -28,5 +28,5 @@ def ProtoThreadServer(ProtoServer):
 		args_list = [ ( [self, socket], None) ]
 		r = threadpool.makeRequests(ProtoServer.handle_socket, args_list)[0]
 		log.debug('starting child thread %s' % r)
-		pool.putRequest(r)
+		self.pool.putRequest(r)
 		

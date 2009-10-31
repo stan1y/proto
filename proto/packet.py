@@ -6,6 +6,7 @@ Created on  Oct 24, 2009
 @author: Stanislav Yudin
 '''
 import simplejson
+from error import ProtoError
 
 def encode_request(service_name, method_name, request_obj, response_class):
 	request = {}

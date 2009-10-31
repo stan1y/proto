@@ -22,6 +22,7 @@ import threading
 import simplejson
 import packet
 import threaded
+from error import *
 
 log = logging.getLogger(__name__)
 SIZE = 8192
@@ -36,12 +37,6 @@ def set_pb2_module(module):
 	global __pb2_module
 	if not __pb2_module:
 		__pb2_module = module
-		
-class ProtoDisconnected(Exception):
-	pass
-
-class ProtoError(Exception):
-	pass
 
 # ************** RPC Controller ******************* #
 
@@ -95,15 +90,15 @@ class ProtoServer(object):
 		self.addr = addr
 		self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 		self.sock.bind(addr)
+		log.debug('%s listening on %s' % (type(self).__name__, addr))
 	
 	@classmethod	
-	def run_server(cls, port, pb2):
-		cls.run_server_thread(port, pb2)[1].join()
+	def run_server(cls, port):
+		cls.run_server_thread(port)[1].join()
 	
 	@classmethod
-	def run_server_thread(cls, port, pb2):
-		set_pb2_module(pb2)
-		log.info('Starting server for %s: %s' % ('localhost', port))
+	def run_server_thread(cls, port):
+		log.info('Starting %s on %s: %s' % ( cls.__name__, 'localhost', port))
 		server = cls(('localhost', port))
 	    # Start a thread with the server -- that thread will then start one
 	    # more thread for each request
@@ -123,15 +118,17 @@ class ProtoServer(object):
 			"""
 			log.info('Accepting connections..')
 			try:
-				connection, address = self.sock.accept()
-				socket = ProtoSocket(connection)
-				self.handle_socket(socket)
-				log.debug('Connection from %s:%s' % address)
-			except ProtoDisconnected, pd:
-				log.info('disconnected (%s) %s' % (type(pd), str(pd)) )
-				log.info('closing clinet connection,,,')
+				try:
+					connection, address = self.sock.accept()
+					socket = ProtoSocket(connection)
+					self.handle_socket(socket)
+					log.debug('Connection from %s:%s' % address)
+				except ProtoDisconnected, pd:
+					log.info('Disconnected (%s) %s' % (type(pd), str(pd)) )
+					continue #accepting
+			finally:
+				log.info('Closing clinet connection...')
 				connection.close()
-				continue #accepting
 
 	def callback(self, object):
 		log.info('callback: %s', object)
@@ -168,12 +165,14 @@ class ProtoServer(object):
 				
 			res = self.CallMethod(method, c, request_inst, self.callback)
 			
-			if c.Failed() or not res:
+			if res is None:
+				log.fatal('rpc api %s.%s returned None'  % (service_name, method_name))
+				socket.send_error_answer('No RPC response')
+			elif c.Failed():
 				log.fatal('rpc api %s.%s failed: %s' % (service_name, method_name, c.error) )
 				#answer with error
 				socket.send_error_answer(c.error)
 			else:
-			
 				#create answer
 				answer = packet.encode_answer(service_name, method_name, res, response_class)
 				socket.send_data(answer)
@@ -186,6 +185,7 @@ class ProtoSocket(object):
 		
 	def close(self):
 		self.__socket.close()
+		log.info('closing socket...')
 	
 	def recv_data(self):
 		log.debug('reading data...')

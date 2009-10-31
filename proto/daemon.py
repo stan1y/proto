@@ -5,10 +5,12 @@ Licensed under LPGLv2+.
 Created on  Oct 24, 2009
 @author: Stanislav Yudin
 '''
-import sys, os, time, atexit
+import sys, os, time, atexit, logging
 from signal import SIGTERM 
 
-class Daemon:
+log = logging.getLogger(__name__)
+
+class Daemon(object):
 	"""
 	A generic daemon class.
 	
@@ -18,7 +20,8 @@ class Daemon:
 		self.stdin = stdin
 		self.stdout = stdout
 		self.stderr = stderr
-		self.pidfile = pidfile
+		self.pidfile = os.path.abspath(pidfile)
+		log.debug('Deamon initialized, pidfile=%s' % pidfile)
 	
 	def daemonize(self):
 		"""
@@ -26,13 +29,14 @@ class Daemon:
 		Programming in the UNIX Environment" for details (ISBN 0201563177)
 		http://www.erlenstar.demon.co.uk/unix/faq_2.html#SEC16
 		"""
+		log.debug('Daemonizing...')
 		try: 
 			pid = os.fork() 
 			if pid > 0:
 				# exit first parent
 				sys.exit(0) 
 		except OSError, e: 
-			sys.stderr.write("fork #1 failed: %d (%s)\n" % (e.errno, e.strerror))
+			log.fatal("fork #1 failed: %d (%s)\n" % (e.errno, e.strerror))
 			sys.exit(1)
 	
 		# decouple from parent environment
@@ -47,7 +51,7 @@ class Daemon:
 				# exit from second parent
 				sys.exit(0) 
 		except OSError, e: 
-			sys.stderr.write("fork #2 failed: %d (%s)\n" % (e.errno, e.strerror))
+			log.fatal("fork #2 failed: %d (%s)\n" % (e.errno, e.strerror))
 			sys.exit(1) 
 	
 		# redirect standard file descriptors
@@ -63,12 +67,16 @@ class Daemon:
 		# write pidfile
 		atexit.register(self.delpid)
 		pid = str(os.getpid())
-		file(self.pidfile,'w+').write("%s\n" % pid)
+		log.debug('Creating pid file with pid=%s' % pid)
+		pidf = file(self.pidfile,'w+')
+		pidf.write("%s\n" % pid)
+		pidf.close()
 	
 	def delpid(self):
 		os.remove(self.pidfile)
 
 	def start(self):
+		log.debug('Starting...')
 		"""
 		Start the daemon
 		"""
@@ -87,6 +95,7 @@ class Daemon:
 		
 		# Start the daemon
 		self.daemonize()
+		log.debug('Stepping in...')
 		self.run()
 
 	def stop(self):

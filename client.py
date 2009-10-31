@@ -21,7 +21,8 @@ if __name__ == '__main__':
 	server = sample_pb2.sample_rpc_Stub(proto.ProtoChannel('localhost', 9999, sample_pb2))
 	controller = proto.ProtoController()
 	try:
-		rst = sample_pb2.sample_request( message = 'hello server!')
+		rst = sample_pb2.sample_request()
+		rst.message = 'hello server!'
 		resp = server.the_method(controller, rst, async_callback)
 		print 'server answer %s' % str(resp.answer)
 

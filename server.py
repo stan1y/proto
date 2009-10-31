@@ -6,7 +6,7 @@ Created on  Oct 24, 2009
 @author: Stanislav Yudin
 '''
 import sys, logging
-import sample_pb2, proto, proto.threaded
+import sample_pb2, proto
 
 log = logging.getLogger(__name__)
 
@@ -17,7 +17,9 @@ class sample_impl(proto.ProtoServer, sample_pb2.sample_rpc):
 	
 	def the_method(self, rpc_controller, request, done):
 		log.debug('%s called with %s' % (__name__, request))
-		return sample_pb2.sample_response(answer = 'answer!')
+		rsp = sample_pb2.sample_response()
+		rsp.answer = 'answer!'
+		return rsp
 
 logging.basicConfig(level=logging.DEBUG)
 log = logging.getLogger(__name__)
