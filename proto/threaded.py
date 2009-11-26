@@ -10,7 +10,7 @@ import logging
 
 log = logging.getLogger(__name__)
 
-def ProtoThreadServer(ProtoServer):
+class ProtoThreadServer(ProtoServer):
 	pool = threadpool.ThreadPool(10)
 	def handle_socket(self, socket):
 		'''

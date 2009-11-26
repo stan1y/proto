@@ -5,7 +5,7 @@ Licensed under LPGLv2+.
 Created on  Oct 24, 2009
 @author: Stanislav Yudin
 '''
-import simplejson
+import pickle
 from error import ProtoError
 
 def encode_request(service_name, method_name, request_obj, response_class):
@@ -17,7 +17,7 @@ def encode_request(service_name, method_name, request_obj, response_class):
 	packet['request'] = request_obj.SerializeToString()
 	packet['response_class'] = response_class.__name__
 	request['request'] = packet
-	r = simplejson.dumps(request)
+	r = pickle.dumps(request)
 	return r
 
 def encode_answer(service_name, method_name, response, response_class):
@@ -28,11 +28,11 @@ def encode_answer(service_name, method_name, response, response_class):
 	packet['response'] = response.SerializeToString()
 	packet['response_class'] = response_class.__name__
 	answer['answer']= packet
-	a = simplejson.dumps(answer)
+	a = pickle.dumps(answer)
 	return a
 
 def decode_request(data, module):
-	request = simplejson.loads(data)
+	request = pickle.loads(data)
 	if not isinstance(request, dict) or not is_request(data):
 		raise ProtoError('Invalid request for decoding')
 	packet = request['request']
@@ -48,7 +48,7 @@ def decode_request(data, module):
 	return service_name, method_name, request_inst, response_class
 
 def decode_answer(data, module):
-	answer = simplejson.loads(data)
+	answer = pickle.loads(data)
 	if not isinstance(answer, dict) or not is_answer(data):
 		raise ProtoError('Invalid answer for decoding')
 	
@@ -68,14 +68,14 @@ def decode_answer(data, module):
 	return service_name, method_name, response_inst, response_class
 
 def is_answer(data):
-	answer = simplejson.loads(data)
+	answer = pickle.loads(data)
 	if 'error' or 'answer' in answer:
 		return True
 	else:
 		return False
 	
 def is_request(data):
-	request = simplejson.loads(data)
+	request = pickle.loads(data)
 	if 'request' in request:
 		return True
 	else:
