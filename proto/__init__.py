@@ -210,8 +210,6 @@ class ProtoSocket(object):
 		if not data or len(data) < 0:
 			raise ProtoError('No data received as response')
 		if packet.is_answer(data):
-			#answer received, exiting while and return
-			log.debug('Gochaa! (%s) : %s' % (len(data), data))
 			return packet.decode_answer(data, get_pb2_module())
 		else:
 			log.debug('received some strange data while waiting for answer...')
