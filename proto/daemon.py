@@ -21,7 +21,6 @@ class Daemon(object):
 		self.stdout = stdout
 		self.stderr = stderr
 		self.pidfile = os.path.abspath(pidfile)
-		log.debug('Deamon initialized, pidfile=%s' % pidfile)
 	
 	def daemonize(self):
 		"""
@@ -65,14 +64,19 @@ class Daemon(object):
 		os.dup2(se.fileno(), sys.stderr.fileno())
 	
 		# write pidfile
-		atexit.register(self.delpid)
-		pid = str(os.getpid())
-		log.debug('Creating pid file with pid=%s' % pid)
-		pidf = file(self.pidfile,'w+')
-		pidf.write("%s\n" % pid)
-		pidf.close()
+		try:
+			atexit.register(self.delpid)
+			pid = str(os.getpid())
+			log.debug('Creating pid file %s with pid=%s' % ( self.pidfile, pid) )
+			pidf = file(self.pidfile,'w+')
+			pidf.write("%s\n" % pid)
+			pidf.close()
+		except Exception, ex:
+			log.fatal('fatal exception: %s', str(ex))
+			sys.exit(1)
 	
 	def delpid(self):
+		log.debug('Daemon exiting, removing pid file at %s', self.pidfile)
 		os.remove(self.pidfile)
 
 	def start(self):
@@ -115,7 +119,8 @@ class Daemon(object):
 			sys.stderr.write(message % self.pidfile)
 			return # not an error in a restart
 
-		# Try killing the daemon process	
+		# Try killing the daemon process
+		log.debug('Killing daemon pid:%d', pid)
 		try:
 			while 1:
 				os.kill(pid, SIGTERM)

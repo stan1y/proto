@@ -21,7 +21,6 @@ import socket
 import threading
 import simplejson
 import packet
-import threaded
 from error import *
 
 log = logging.getLogger(__name__)
