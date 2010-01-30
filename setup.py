@@ -14,7 +14,7 @@ setup(
 		url="http://github.com/AwesomeStanly/proto",
 		classifiers=["Development Status :: Beta", "Framework :: ProtocolBuffers"],
 		include_package_data=True,
-		install_requires=[ "protobuf>=2.2.0a" ],
+		install_requires=[ "protobuf>=2.2.0a", "threadpool>=1.2.7" ],
 		packages=['proto'],
 		setup_requires=[],
 		zip_safe=True
