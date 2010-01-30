@@ -18,7 +18,6 @@ import sys
 import logging
 import time
 import socket
-import threadpool
 import threading
 import simplejson
 import packet
