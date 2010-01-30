@@ -110,7 +110,6 @@ class ProtoServer(object):
 		'''
 			Main server entry point
 		'''
-		pool = threadpool.ThreadPool(5)
 		self.sock.listen(5)
 		while(True):
 			"""
