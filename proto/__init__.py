@@ -122,6 +122,7 @@ class ProtoServer(object):
 			
 			handle_thread = threading.Thread(target=handle_socket, args = (self, socket))
 			handle_thread.start()
+			log.debug('Thread spawned')
 
 	def callback(self, object):
 		log.info('callback: %s', object)
