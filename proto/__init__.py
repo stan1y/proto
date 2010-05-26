@@ -14,12 +14,17 @@ See README.txt for usage
 @author: Stanislav Yudin
 '''
 from google.protobuf.service import RpcChannel, RpcController
+
+try:
+	import json
+except ImportError:
+	import simplejson as json
+
 import sys
 import logging
 import time
 import socket
 import threading
-import simplejson
 import packet
 from error import *
 
@@ -203,7 +208,7 @@ class ProtoSocket(object):
 		log.debug('sent %s bytes' % sent_bytes)
 		
 	def send_error_answer(self, error):
-		p = simplejson.dumps({ 'error': error })
+		p = json.dumps({ 'error': error })
 		log.debug('rpc sending error: %s' % p)
 		self.send_data(p)
 	
