@@ -15,11 +15,7 @@ See README.txt for usage
 '''
 from google.protobuf.service import RpcChannel, RpcController
 
-try:
-	import json
-except ImportError:
-	import simplejson as json
-
+import pickle
 import sys
 import logging
 import time
@@ -150,7 +146,7 @@ def	handle_socket(*args, **kw):
 								( method_name, service_name, type(self).__name__ )
 								)
 
-			done = None
+			
 			c = ProtoController()
 			#creating implementation of requested server
 			method = server.GetDescriptor().FindMethodByName(method_name)
@@ -208,17 +204,17 @@ class ProtoSocket(object):
 		log.debug('sent %s bytes' % sent_bytes)
 		
 	def send_error_answer(self, error):
-		p = json.dumps({ 'error': error })
+		p = pickle.dumps({ 'error': error })
 		log.debug('rpc sending error: %s' % p)
 		self.send_data(p)
 	
-	def request_with_answer(self, request):
+	def request_with_answer(self, request, response_type):
 		self.send_data(request)
 		data = self.recv_data()
 		if not data or len(data) < 0:
 			raise ProtoError('No data received as response')
 		if packet.is_answer(data):
-			return packet.decode_answer(data, get_pb2_module())
+			return packet.decode_answer(data, response_type)
 		else:
 			log.debug('received some strange data while waiting for answer...')
 		
@@ -255,12 +251,11 @@ class ProtoChannel(RpcChannel):
 		log.debug('Response class: %s' % response_class)
 		
 		request = packet.encode_request(md.containing_service.name, md.name, request, response_class)
-		service_name, method_name, response_inst, response_class = self.sock.request_with_answer(request)
+		service_name, method_name, response_inst = self.sock.request_with_answer(request, response_class)
 		
 		log.debug('answer method_name: %s' % method_name)
 		log.debug('answer service_name: %s' % service_name)
 		log.debug('answer response_inst: %s' % response_inst)
-		log.debug('answer response_class: %s' % response_class)
 		#callback
 		if done:
 			done(response_inst)

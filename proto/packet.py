@@ -47,7 +47,7 @@ def decode_request(data, module):
 	request_inst.ParseFromString(packet['request'])
 	return service_name, method_name, request_inst, response_class
 
-def decode_answer(data, module):
+def decode_answer(data, response_type):
 	answer = pickle.loads(data)
 	if not isinstance(answer, dict) or not is_answer(data):
 		raise ProtoError('Invalid answer for decoding')
@@ -62,10 +62,9 @@ def decode_answer(data, module):
 	
 	service_name = packet['service']
 	method_name = packet['method']
-	response_class = getattr(module,str(packet['response_class']))
-	response_inst = response_class()
+	response_inst = response_type()
 	response_inst.ParseFromString(packet['response'])
-	return service_name, method_name, response_inst, response_class
+	return service_name, method_name, response_inst
 
 def is_answer(data):
 	answer = pickle.loads(data)
