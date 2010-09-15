@@ -7,14 +7,14 @@ except ImportError:
 
 setup(
 		name='proto',
-		version='0.3.2',
+		version='0.4.0',
 		description="The \"Proto!\" Python Async RPC based on ProtocolBuffers and TCP sockets.",
 		author="Stanislav Yudin",
 		author_email="decvar@gmail.com",
 		url="http://github.com/AwesomeStanly/proto",
 		classifiers=["Development Status :: Beta", "Framework :: ProtocolBuffers"],
 		include_package_data=True,
-		install_requires=[ "protobuf>=2.2.0a"],
+		install_requires=[ "protobuf>=2.2.0a", "pyasn1>=0.0.8a"],
 		packages=['proto'],
 		setup_requires=[],
 		zip_safe=True
