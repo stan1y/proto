@@ -15,7 +15,6 @@ See README.txt for usage
 '''
 from google.protobuf.service import RpcChannel, RpcController
 
-import pickle
 import sys
 import logging
 import time
@@ -164,11 +163,11 @@ def	handle_socket(*args, **kw):
 
 			if res is None:
 				log.fatal('rpc api %s.%s returned None'  % (service_name, method_name))
-				socket.send_error_answer('No RPC response')
+				socket.send_error_answer(service_name, method_name, 'No RPC response')
 			elif c.Failed():
 				log.fatal('rpc api %s.%s failed: %s' % (service_name, method_name, c.error) )
 				#answer with error
-				socket.send_error_answer(c.error)
+				socket.send_error_answer(service_name, method_name, c.error)
 			else:
 				#create answer
 				answer = packet.encode_answer(service_name, method_name, res, response_class)
@@ -192,31 +191,46 @@ class ProtoSocket(object):
 	
 	def recv_data(self):
 		log.debug('reading data...')
-		data = self.__socket.recv(8192)
-		if not data:
+		total_data = ''
+		while True:
+			try:
+				data = self.__socket.recv(65565, socket.MSG_DONTWAIT)
+				
+				if not data:
+					break
+					
+				log.debug('read chunk %d bytes' % len(data))
+				total_data += data
+				
+			except socket.error, err:
+				#EAGAIN & EWOULDBLOCK
+				if err.errno != 11:
+					raise err
+				elif total_data:
+					break
+
+		if not total_data:
 			log.debug('socket disconnected!')
 			raise ProtoDisconnected()
-		log.debug('received %s bytes' % len(data))
+			
+		log.debug('received %d bytes totally' % len(data))
 		return data		
 	
 	def send_data(self, data):
 		sent_bytes = self.__socket.send(data)
 		log.debug('sent %s bytes' % sent_bytes)
 		
-	def send_error_answer(self, error):
-		p = pickle.dumps({ 'error': error })
-		log.debug('rpc sending error: %s' % p)
-		self.send_data(p)
+	def send_error_answer(self, service, method, error):
+		log.debug('rpc sending error: %s' % error)
+		self.send_data(packet.encode_error(service, method, error))
 	
 	def request_with_answer(self, request, response_type):
 		self.send_data(request)
 		data = self.recv_data()
 		if not data or len(data) < 0:
 			raise ProtoError('No data received as response')
-		if packet.is_answer(data):
-			return packet.decode_answer(data, response_type)
-		else:
-			log.debug('received some strange data while waiting for answer...')
+		return packet.decode_answer(data, response_type)
+		
 		
 
 # ************** Client ******************* #
