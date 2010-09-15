@@ -1,0 +1,13 @@
+Source:                 python-proto
+Section:                LGPLv2
+Priority:               extra
+Maintainer:             Stanislav Yudin <syudin@k7computing.com>
+Build-Depends:          debhelper (>=7.0.0), python-support (>= 0.6), cdbs (>= 0.4.49)
+Standards-Version:      3.8.1
+
+Package:                python-proto
+Architecture:           all
+Homepage:               http://github.com/AwesomeStanly/proto
+Depends:                python-protobuf (>=2.2.0a), ${python:Depends}
+Description:            Simple and efficient RPC implementation on top of Google's ProtocolBuffers and TCP sockets
+
