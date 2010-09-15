@@ -1,0 +1,6 @@
+To build deb package perform following actions:
+ - set version of a packaged
+	debchange -v X.Y.Z.[A]cyclozzo[B]
+
+ - build deb in fakeroot
+	dpkg-buildpackage -i -I -rfakeroot
