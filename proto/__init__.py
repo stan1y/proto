@@ -213,8 +213,8 @@ class ProtoSocket(object):
 			log.debug('socket disconnected!')
 			raise ProtoDisconnected()
 			
-		log.debug('received %d bytes totally' % len(data))
-		return data		
+		log.debug('received %d bytes totally' % len(total_data))
+		return total_data		
 	
 	def send_data(self, data):
 		sent_bytes = self.__socket.send(data)
