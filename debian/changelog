@@ -1,3 +1,10 @@
+python-proto (0.4.0.1cyclozzo1) lucid; urgency=low
+
+  * Use ASN.1 Encoding for packets & support really large packet payload
+  * Dynamic received buffer size
+
+ -- Stanislav Yudin <decvar@gmail.com>  Wed, 15 Sep 2010 17:41:32 +0530
+
 python-proto (0.3.2.1cyclozzo1) lucid; urgency=high
 
   * Initial release.
