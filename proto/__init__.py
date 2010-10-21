@@ -3,7 +3,7 @@ The Proto! Python Async RPC based on ProtocolBuffers and TCP sockets.
 Licensed under LPGLv2+.
 Created on  Oct 24, 2009
 
-@version: 0.3.1
+@version: 0.4.0
 
 References:
 http://github.com/AwesomeStanly/proto
@@ -213,8 +213,8 @@ class ProtoSocket(object):
 			log.debug('socket disconnected!')
 			raise ProtoDisconnected()
 			
-		log.debug('received %d bytes totally' % len(data))
-		return data		
+		log.debug('received %d bytes totally' % len(total_data))
+		return total_data		
 	
 	def send_data(self, data):
 		sent_bytes = self.__socket.send(data)
