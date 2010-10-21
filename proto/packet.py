@@ -85,7 +85,7 @@ def decode_answer(data, response_type):
 	
 	response_type_name = str(pkt.getComponentByPosition(3))
 	if response_type.__name__ != response_type_name:
-		raise ProtoError('Response type %s received when %d was expected' % (response_type_name, response_type.__name__))
+		raise ProtoError('Response type %s received when %s was expected' % (response_type_name, response_type.__name__))
 	
 	#get data
 	service_name = str(pkt.getComponentByPosition(0))
