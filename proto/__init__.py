@@ -3,7 +3,7 @@ The Proto! Python Async RPC based on ProtocolBuffers and TCP sockets.
 Licensed under LPGLv2+.
 Created on  Oct 24, 2009
 
-@version: 0.4.0
+@version: 0.4.1
 
 References:
 http://github.com/AwesomeStanly/proto
@@ -135,7 +135,7 @@ def	handle_socket(*args, **kw):
 			"""
 			Reading packets
 			"""
-			data = socket.recv_data()
+			data = socket.recv_data(None)
 			#call method
 			service_name, method_name, request_inst, response_class = packet.decode_request(data, get_pb2_module())
 			log.info('rpc api %s.%s started' % (type(server).__name__, method_name))
@@ -184,29 +184,41 @@ def	handle_socket(*args, **kw):
 class ProtoSocket(object):
 	def __init__(self, socket):
 		self.__socket = socket
+		self.__socket.setblocking(0)
 		
 	def close(self):
 		self.__socket.close()
 		log.info('closing socket...')
 	
-	def recv_data(self):
-		log.debug('reading data...')
+	def recv_data(self, response_type):
+		log.debug('receiving data...')
 		total_data = ''
 		while True:
+			data = None
 			try:
-				data = self.__socket.recv(65565, socket.MSG_DONTWAIT)
+				data = self.__socket.recv(4096)#, socket.MSG_DONTWAIT)
 				
 				if not data:
+					log.debug('no more data in socket')
 					break
 					
 				log.debug('read chunk %d bytes' % len(data))
 				total_data += data
+				if response_type:
+					try:
+						decoded_packet = packet.decode_answer(total_data, response_type)
+						log.debug('whole data packet was received.')
+						return decoded_packet
+					except Exception, ex:
+						log.debug('waiting for the whole packet.')
+						continue
 				
 			except socket.error, err:
 				#EAGAIN & EWOULDBLOCK
 				if err.errno != 11:
 					raise err
-				elif total_data:
+				elif total_data and not response_type:
+					log.debug('looks like the whole data received.')
 					break
 
 		if not total_data:
@@ -226,10 +238,14 @@ class ProtoSocket(object):
 	
 	def request_with_answer(self, request, response_type):
 		self.send_data(request)
-		data = self.recv_data()
-		if not data or len(data) < 0:
+		packet = self.recv_data(response_type)
+		if packet:
+			return packet
+		else:
 			raise ProtoError('No data received as response')
-		return packet.decode_answer(data, response_type)
+		#if not data or len(data) < 0:
+		#	raise ProtoError('No data received as response')
+		#return packet.decode_answer(data, response_type)
 		
 		
 
