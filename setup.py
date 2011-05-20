@@ -7,7 +7,7 @@ except ImportError:
 
 setup(
 		name='proto',
-		version='0.4.0',
+		version='0.4.1',
 		description="The \"Proto!\" Python Async RPC based on ProtocolBuffers and TCP sockets.",
 		author="Stanislav Yudin",
 		author_email="decvar@gmail.com",
