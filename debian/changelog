@@ -1,7 +1,16 @@
-python-proto (0.4.1.1cyclozzo1) lucid; urgency=high
+python-proto (0.4.2.1cyclozzo1) lucid; urgency=low
 
+  * Decode read request data until the whole valid ASN.1 payload received
+
+ -- Cyclozzo Builder <cyclozzo@repo>  Wed, 29 Jun 2011 17:21:53 +0530
+
+python-proto (0.4.1.1cyclozzo2) lucid; urgency=low
+
+  [ Stanislav Yudin ]
   * Try to parse response data with available response_class each time to figure out the real end of received response.
   * Prevents response reading errors on slow networks
+ 
+ -- Cyclozzo Builder <cyclozzo@repo>  Thu, 02 Jun 2011 15:48:57 +0530
 
 python-proto (0.4.0.1cyclozzo1) lucid; urgency=low
 

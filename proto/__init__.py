@@ -135,9 +135,8 @@ def	handle_socket(*args, **kw):
 			"""
 			Reading packets
 			"""
-			data = socket.recv_data(None)
 			#call method
-			service_name, method_name, request_inst, response_class = packet.decode_request(data, get_pb2_module())
+			service_name, method_name, request_inst, response_class = socket.recv_data(None)
 			log.info('rpc api %s.%s started' % (type(server).__name__, method_name))
 			log.debug('rpc service object: %s (%s)' % (service_name, getattr(get_pb2_module(), service_name)))
 			if not isinstance(server, getattr(get_pb2_module(), service_name) ):
@@ -196,7 +195,7 @@ class ProtoSocket(object):
 		while True:
 			data = None
 			try:
-				data = self.__socket.recv(4096)#, socket.MSG_DONTWAIT)
+				data = self.__socket.recv(SIZE)
 				
 				if not data:
 					log.debug('no more data in socket')
@@ -210,7 +209,6 @@ class ProtoSocket(object):
 						log.debug('whole data packet was received.')
 						return decoded_packet
 					except Exception, ex:
-						log.debug('waiting for the whole packet.')
 						continue
 				
 			except socket.error, err:
@@ -218,8 +216,11 @@ class ProtoSocket(object):
 				if err.errno != 11:
 					raise err
 				elif total_data and not response_type:
-					log.debug('looks like the whole data received.')
-					break
+					try:
+						service_name, method_name, request_inst, response_class = packet.decode_request(total_data, get_pb2_module())
+						return service_name, method_name, request_inst, response_class
+					except Exception, ex:
+						continue
 
 		if not total_data:
 			log.debug('socket disconnected!')
